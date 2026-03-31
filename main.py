@@ -4,7 +4,6 @@ import json
 import os 
 from datetime import datetime  
 
-    
 # -----------------------------
 # Imports da biblioteca Rich
 # -----------------------------
@@ -31,12 +30,11 @@ class ChatNode:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((ip, porta))
 
-        print(f"{self.nome} rodando em {ip}:{porta}");
+        print(f"{self.nome} rodando em {ip}:{porta}")
 
     # -----------------------------
     # Criar mensagem 
     # -----------------------------
-
     def criar_mensagem(self, destino, texto, encaminhado=False):
         return json.dumps({
             "timestamp": str(datetime.now()),
@@ -48,16 +46,20 @@ class ChatNode:
             "destino": destino,
             "conteudo": texto,
             "encaminhado": encaminhado
-        });
+        })
 
     # -----------------------------
     # Enviar
     # -----------------------------
-
     def enviar(self, destino, texto, encaminhado=False):
         ip, porta = self.vizinhos[destino]
-        msg = self.criar_mensagem(destino, texto, encaminhado)
-        self.socket.sendto(msg.encode(), (ip, porta));
+        msg_str = self.criar_mensagem(destino, texto, encaminhado)
+        self.socket.sendto(msg_str.encode(), (ip, porta))
+        
+        msg_dict = json.loads(msg_str)
+        if destino not in self.historico:
+            self.historico[destino] = []
+        self.historico[destino].append(msg_dict)
 
     # -----------------------------
     # Receber
@@ -85,12 +87,11 @@ class ChatNode:
             except ConnectionResetError:
                 pass
             except Exception as e:
-                console.print(f"\n[bold red][Erro na escuta][/bold red] {e}");
+                console.print(f"\n[bold red][Erro na escuta][/bold red] {e}")
 
     # -----------------------------
     # Mostrar conversas
     # -----------------------------
-
     def ver_conversas(self, encaminhando=False):
         limpar_tela()
         
@@ -107,7 +108,12 @@ class ChatNode:
             tabela.add_column("Hora", style="dim")
 
             for i, msg in enumerate(self.historico[contato]):
-                status = "➡️ Recebido"
+                
+                if msg["remetente"]["nome"] == self.nome:
+                    status = "[blue]⬅️ Enviado[/blue]"
+                else:
+                    status = "[green]➡️ Recebido[/green]"
+                    
                 hora = msg["timestamp"][11:16] 
                 
                 tabela.add_row(str(i), status, msg['conteudo'], hora)
@@ -118,7 +124,7 @@ class ChatNode:
         if not encaminhando:
             Prompt.ask("\n[bold yellow]Pressione ENTER para voltar ao menu...[/bold yellow]")
         else:
-            Prompt.ask("\n[bold yellow]Pressione ENTER para escolher o contato...[/bold yellow]");
+            Prompt.ask("\n[bold yellow]Pressione ENTER para escolher o contato...[/bold yellow]")
 
     # -----------------------------
     # Encaminhar mensagem 
@@ -160,7 +166,7 @@ class ChatNode:
 
         novo_texto = f"Encaminhado por {self.nome}: [{remetente_original}] {conteudo_original}"
         self.enviar(destino, novo_texto, True)
-        Prompt.ask(f"[bold green]Mensagem encaminhada com sucesso para {destino}![/bold green] Pressione ENTER...");
+        Prompt.ask(f"[bold green]Mensagem encaminhada com sucesso para {destino}![/bold green] Pressione ENTER...")
 
     # -----------------------------
     # Menu
@@ -210,6 +216,7 @@ class ChatNode:
 # -----------------------------
 # Configuração inicial
 # -----------------------------
+
 limpar_tela()
 console.print(Panel("[bold magenta]INICIALIZANDO NÓ P2P[/bold magenta]", expand=False))
 
